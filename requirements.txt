@@ -1,4 +1,9 @@
 
 ultralytics
 streamlit
-opencv-python
+    streamlit
+    opencv-python-headless
+    ultralytics
+    torch
+    torchvision
+    pillow
