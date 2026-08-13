@@ -42,38 +42,25 @@ if uploaded_file is not None:
         # temp file میں save کریں اور close کریں
         tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
         tfile.write(file_bytes)
-        tfile.close()  # یہ بہت ضروری ہے
+        tfile.close()
         temp_video_path = tfile.name
         
         st.info("Processing... please wait 1-2 minutes")
         
-        # YOLO predict - save=False رکھیں
+        # YOLO predict
         results = model.predict(source=temp_video_path, save=False, conf=0.5, stream=True)
         
         # خود video بنائیں
-        output_path = "output.avi"  # 1. .mp4 کی جگہ .avi کر دیں
+        output_path = "output.avi" 
         out = None
         
         for r in results:
             frame = r.plot()  # detections والا frame
-            frame = cv2.resize(frame, (640, 360)) # 2. size چھوٹا کر دیں تاکہ جلدی بنے
+            frame = cv2.resize(frame, (640, 360)) # size چھوٹا کر دیں
             
             if out is None:
                 h, w = frame.shape[:2]
-                out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'XVID'), 10, (w, h)) # 3. mp4v کی جگہ XVID اور 20 کی جگہ 10 FPS
-            out.write(frame)
-        
-        if out is not None:
-            out.release()
-        
-        st.success("Done!")
-        st.video(output_path)
-        
-        for r in results:
-            frame = r.plot()  # detections والا frame
-            if out is None:
-                h, w = frame.shape[:2]
-                out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), 20, (w, h))
+                out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'XVID'), 10, (w, h))
             out.write(frame)
         
         if out is not None:
