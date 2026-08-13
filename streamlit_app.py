@@ -1,15 +1,15 @@
-
-import streamlit as st
-import cv2
-from ultralytics import YOLO
 import os
-import tempfile
 import gdown
+import streamlit as st
+from ultralytics import YOLO
 
-# Google Drive سے model download کرنا
+os.makedirs("models", exist_ok=True)  # یہ لائن فولڈر بنا دے گی
+
 model_path = "models/best.pt"
 if not os.path.exists(model_path):
-    gdown.download("https://drive.google.com/drive/folders/1MGJy5fFHB-OIW21yKoN4dpgbnybY_TM5?usp=sharing", model_path, quiet=False)
+    gdown.download("https://drive.google.com/file/d/17jn7a7e_vQtEr4pR4itXZchXQenL888U/view?usp=sharing", model_path, quiet=False)
+
+model = YOLO(model_path)
 
 st.set_page_config(page_title="YOLOv8 Vehicle Detection", page_icon="🚗")
 
