@@ -1,7 +1,9 @@
 import os
 import gdown
 import streamlit as st
+import cv2
 from ultralytics import YOLO
+import tempfile
 
 os.makedirs("models", exist_ok=True)  # یہ لائن فولڈر بنا دے گی
 
