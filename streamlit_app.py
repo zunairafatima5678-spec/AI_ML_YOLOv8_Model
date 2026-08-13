@@ -4,6 +4,12 @@ import cv2
 from ultralytics import YOLO
 import os
 import tempfile
+import gdown
+
+# Google Drive سے model download کرنا
+model_path = "models/best.pt"
+if not os.path.exists(model_path):
+    gdown.download("https://drive.google.com/drive/folders/1MGJy5fFHB-OIW21yKoN4dpgbnybY_TM5?usp=sharing", model_path, quiet=False)
 
 st.set_page_config(page_title="YOLOv8 Vehicle Detection", page_icon="🚗")
 
