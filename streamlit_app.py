@@ -51,8 +51,23 @@ if uploaded_file is not None:
         results = model.predict(source=temp_video_path, save=False, conf=0.5, stream=True)
         
         # خود video بنائیں
-        output_path = "output.mp4"
+        output_path = "output.avi"  # 1. .mp4 کی جگہ .avi کر دیں
         out = None
+        
+        for r in results:
+            frame = r.plot()  # detections والا frame
+            frame = cv2.resize(frame, (640, 360)) # 2. size چھوٹا کر دیں تاکہ جلدی بنے
+            
+            if out is None:
+                h, w = frame.shape[:2]
+                out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'XVID'), 10, (w, h)) # 3. mp4v کی جگہ XVID اور 20 کی جگہ 10 FPS
+            out.write(frame)
+        
+        if out is not None:
+            out.release()
+        
+        st.success("Done!")
+        st.video(output_path)
         
         for r in results:
             frame = r.plot()  # detections والا frame
