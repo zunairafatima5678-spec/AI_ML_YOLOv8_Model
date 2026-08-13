@@ -1,10 +1,7 @@
-
-ultralytics
-streamlit
-    streamlit
-    opencv-python-headless
-    ultralytics
-    torch
-    torchvision
-    pillow
-    gdown
+streamlit==1.61.1
+opencv-python-headless==5.0.0.93
+ultralytics==8.4.118
+torch
+torchvision
+pillow
+gdown==6.1.0
