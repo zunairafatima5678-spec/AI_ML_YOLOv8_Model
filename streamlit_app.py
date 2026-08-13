@@ -5,6 +5,7 @@ from ultralytics import YOLO
 import os
 import tempfile
 import gdown
+import subprocess # یہ نئی لائن add کریں
 
 # 1. Model download
 os.makedirs("models", exist_ok=True)
@@ -35,41 +36,45 @@ if uploaded_file is not None:
             annotated_img = r.plot()
             st.image(annotated_img, caption="Detected Image")
     
-    # Video کا case
+    # Video کا case - نیا طریقہ
     elif "video" in file_type:
         st.video(file_bytes)
         
-        # temp file میں save کریں اور close کریں
         tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
         tfile.write(file_bytes)
         tfile.close()
         temp_video_path = tfile.name
         
-        st.info("Processing... please wait 1-2 minutes")
+        st.info("Processing... please wait 2-3 minutes")
+        progress_bar = st.progress(0)
         
-        # YOLO predict
+        # 1. پہلے سارے detection والے frames کو فولڈر میں save کریں
         results = model.predict(source=temp_video_path, save=False, conf=0.5, stream=True)
+        os.makedirs("frames", exist_ok=True)
         
-        # خود video بنائیں
-        output_path = "output.avi" 
-        out = None
+        frame_count = 0
+        for i, r in enumerate(results):
+            frame = r.plot()
+            frame = cv2.resize(frame, (640, 360))
+            cv2.imwrite(f"frames/frame_{i:05d}.jpg", frame)
+            frame_count += 1
+            progress_bar.progress(min(i/100, 1.0)) # rough progress
         
-        for r in results:
-            frame = r.plot()  # detections والا frame
-            frame = cv2.resize(frame, (640, 360)) # size چھوٹا کر دیں
-            
-            if out is None:
-                h, w = frame.shape[:2]
-                out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'XVID'), 10, (w, h))
-            out.write(frame)
-        
-        if out is not None:
-            out.release()
+        # 2. اب ffmpeg سے ان سب images کی video بنا دیں
+        output_path = "output.mp4"
+        command = [
+            'ffmpeg', '-framerate', '10', '-i', 'frames/frame_%05d.jpg', 
+            '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-y', output_path
+        ]
+        subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
         st.success("Done!")
         st.video(output_path)
         
-        # temp file delete کر دیں
+        # صفائی
         os.remove(temp_video_path)
+        for f in os.listdir("frames"): 
+            os.remove(os.path.join("frames", f))
+        os.rmdir("frames")
 
 
