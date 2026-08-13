@@ -1,5 +1,6 @@
 import streamlit as st
 import cv2
+import numpy as np
 from ultralytics import YOLO
 import os
 import tempfile
@@ -16,30 +17,57 @@ model = YOLO(model_path)
 st.set_page_config(page_title="YOLOv8 Vehicle Detection", page_icon="🚗")
 st.title("🚗 YOLOv8 Vehicle Detection")
 
-uploaded_file = st.file_uploader("Upload Video", type=['mp4', 'avi', 'mov'])
+uploaded_file = st.file_uploader("Upload Image or Video", type=['jpg', 'jpeg', 'png', 'mp4', 'avi', 'mov'])
 
 if uploaded_file is not None:
-    st.video(uploaded_file, format='video/mp4')
+    file_bytes = uploaded_file.read()
+    file_type = uploaded_file.type
     
-    # 2. یہ والا طریقہ use کریں temp file کے لیے
-    tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-    tfile.write(uploaded_file.read())
-    temp_video_path = tfile.name
-    
-    st.info("Processing... please wait")
-    
-    # 3. YOLO predict
-    results = model.predict(source=temp_video_path, save=True, conf=0.5)
-    
-    # 4. Output video دکھائیں
-    for r in results:
-        output_dir = r.save_dir
-        output_video_path = os.path.join(output_dir, os.path.basename(temp_video_path))
+    # Image کا case
+    if "image" in file_type:
+        st.image(file_bytes, caption="Uploaded Image")
+        img = cv2.imdecode(np.frombuffer(file_bytes, np.uint8), cv2.IMREAD_COLOR)
         
-    if os.path.exists(output_video_path):
+        st.info("Processing...")
+        results = model.predict(source=img, conf=0.5)
+        
+        for r in results:
+            annotated_img = r.plot()
+            st.image(annotated_img, caption="Detected Image")
+    
+    # Video کا case
+    elif "video" in file_type:
+        st.video(file_bytes)
+        
+        # temp file میں save کریں اور close کریں
+        tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+        tfile.write(file_bytes)
+        tfile.close()  # یہ بہت ضروری ہے
+        temp_video_path = tfile.name
+        
+        st.info("Processing... please wait 1-2 minutes")
+        
+        # YOLO predict - save=False رکھیں
+        results = model.predict(source=temp_video_path, save=False, conf=0.5, stream=True)
+        
+        # خود video بنائیں
+        output_path = "output.mp4"
+        out = None
+        
+        for r in results:
+            frame = r.plot()  # detections والا frame
+            if out is None:
+                h, w = frame.shape[:2]
+                out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), 20, (w, h))
+            out.write(frame)
+        
+        if out is not None:
+            out.release()
+        
         st.success("Done!")
-        st.video(output_video_path)
-    else:
-        st.error("Output video not found")
+        st.video(output_path)
+        
+        # temp file delete کر دیں
+        os.remove(temp_video_path)
 
 
