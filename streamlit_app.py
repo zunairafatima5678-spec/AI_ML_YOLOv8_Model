@@ -6,6 +6,7 @@ import os
 import tempfile
 import gdown
 import subprocess
+import shutil
 
 # 1. Model download
 os.makedirs("models", exist_ok=True)
@@ -21,10 +22,10 @@ st.title("🚗 YOLOv8 Vehicle Detection")
 uploaded_file = st.file_uploader("Upload Image or Video", type=['jpg', 'jpeg', 'png', 'mp4', 'avi', 'mov'])
 
 if uploaded_file is not None:
-    file_bytes = uploaded_file.read() # صرف 1 بار read کریں
+    file_bytes = uploaded_file.read()
     file_type = uploaded_file.type
     
-    # Image کا case
+    # Image  case
     if "image" in file_type:
         st.image(file_bytes, caption="Uploaded Image")
         img = cv2.imdecode(np.frombuffer(file_bytes, np.uint8), cv2.IMREAD_COLOR)
@@ -36,11 +37,10 @@ if uploaded_file is not None:
             annotated_img = r.plot()
             st.image(annotated_img, caption="Detected Image")
     
-    # Video کا case - ffmpeg والا پکا طریقہ
+    # Video  case
     elif "video" in file_type:
         st.video(file_bytes)
         
-        # temp file میں save کریں
         tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
         tfile.write(file_bytes)
         tfile.close()
@@ -48,28 +48,31 @@ if uploaded_file is not None:
         
         st.info("Processing... please wait 2-3 minutes")
         
-        # 1. پہلے سارے detection والے frames کو فولڈر میں save کریں
+        # 1. Frames save 
         results = model.predict(source=temp_video_path, save=False, conf=0.5, stream=True)
-        os.makedirs("frames", exist_ok=True)
+        frames_dir = "frames"
+        if os.path.exists(frames_dir): shutil.rmtree(frames_dir)# delete
+        os.makedirs(frames_dir, exist_ok=True)
         
         for i, r in enumerate(results):
             frame = r.plot()
             frame = cv2.resize(frame, (640, 360))
-            cv2.imwrite(f"frames/frame_{i:05d}.jpg", frame)
+            cv2.imwrite(f"{frames_dir}/frame_{i:05d}.jpg", frame)
         
-        # 2. اب ffmpeg سے ان سب images کی video بنا دیں
+        # 2. ffmpeg  video
         output_path = "output.mp4"
         command = [
-            'ffmpeg', '-framerate', '10', '-i', 'frames/frame_%05d.jpg', 
+            'ffmpeg', '-framerate', '10', '-i', f'{frames_dir}/frame_%05d.jpg', 
             '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-y', output_path
         ]
-        subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         
-        st.success("Done!")
-        st.video(output_path)
+        if result.returncode != 0:
+            st.error("FFmpeg Error. Check logs")
+            st.code(result.stderr)
+        else:
+            st.success("Done!")
+            st.video(output_path)
         
-        # صفائی
         os.remove(temp_video_path)
-        for f in os.listdir("frames"): 
-            os.remove(os.path.join("frames", f))
-        os.rmdir("frames")
+        shutil.rmtree(frames_dir)
