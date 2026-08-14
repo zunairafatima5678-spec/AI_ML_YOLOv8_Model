@@ -3,5 +3,5 @@ opencv-python-headless==5.0.0.93
 ultralytics==8.4.118
 torch
 torchvision
-pillow
 gdown==6.1.0
+imageio[ffmpeg]
