@@ -5,8 +5,7 @@ from ultralytics import YOLO
 import os
 import tempfile
 import gdown
-import subprocess
-import shutil
+import imageio 
 
 # 1. Model download
 os.makedirs("models", exist_ok=True)
@@ -24,55 +23,45 @@ uploaded_file = st.file_uploader("Upload Image or Video", type=['jpg', 'jpeg', '
 if uploaded_file is not None:
     file_bytes = uploaded_file.read()
     file_type = uploaded_file.type
-    
-    # Image  case
+
+    # Image case
     if "image" in file_type:
         st.image(file_bytes, caption="Uploaded Image")
         img = cv2.imdecode(np.frombuffer(file_bytes, np.uint8), cv2.IMREAD_COLOR)
-        
+
         st.info("Processing...")
         results = model.predict(source=img, conf=0.5)
-        
+
         for r in results:
             annotated_img = r.plot()
             st.image(annotated_img, caption="Detected Image")
-    
-    # Video  case
+
+    # Video case - imageio
     elif "video" in file_type:
         st.video(file_bytes)
-        
+
         tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
         tfile.write(file_bytes)
         tfile.close()
         temp_video_path = tfile.name
-        
+
         st.info("Processing... please wait 2-3 minutes")
-        
-        # 1. Frames save 
+
+        # 1. frames list  save
         results = model.predict(source=temp_video_path, save=False, conf=0.5, stream=True)
-        frames_dir = "frames"
-        if os.path.exists(frames_dir): shutil.rmtree(frames_dir)# delete
-        os.makedirs(frames_dir, exist_ok=True)
-        
-        for i, r in enumerate(results):
+        frames = []
+
+        for r in results:
             frame = r.plot()
             frame = cv2.resize(frame, (640, 360))
-            cv2.imwrite(f"{frames_dir}/frame_{i:05d}.jpg", frame)
-        
-        # 2. ffmpeg  video
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frames.append(frame)
+
+        # 2. imageio video
         output_path = "output.mp4"
-        command = [
-            'ffmpeg', '-framerate', '10', '-i', f'{frames_dir}/frame_%05d.jpg', 
-            '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-y', output_path
-        ]
-        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        
-        if result.returncode != 0:
-            st.error("FFmpeg Error. Check logs")
-            st.code(result.stderr)
-        else:
-            st.success("Done!")
-            st.video(output_path)
-        
+        imageio.mimsave(output_path, frames, fps=10, macro_block_size=1)
+
+        st.success("Done!")
+        st.video(output_path)
+
         os.remove(temp_video_path)
-        shutil.rmtree(frames_dir)
